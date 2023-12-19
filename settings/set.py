@@ -52,14 +52,22 @@ def get_init_pos_straight_random(des_dis: float) -> list:
 
 def get_init_pos_inter(order: int,  des_dis: float) -> list:
     leader_pos = params.I_POS
+    des_dis = 10
     q, mod = divmod(order, params.N_LANE) # q:商, mod:余り
-    if mod == 0:
-        pos_list = [-1.5, leader_pos[0]-(q+0.5)*des_dis]
-    elif mod == 1:
-        pos_list = [-7.5, leader_pos[0]-(q+0.5)*des_dis]
-    else: # mod == 2
-        pos_list = [-4.5, leader_pos[0]-(q+1)*des_dis]
-    return pos_list 
+    if params.N_LANE ==3:
+        if mod == 0:
+            pos_list = [-1.5, params.I_POS[1]-(q+0.5)*des_dis]
+        elif mod == 1:
+            pos_list = [-7.5, params.I_POS[1]-(q+0.5)*des_dis]
+        else: # mod == 2
+            pos_list = [-4.5, params.I_POS[1]-(q+1)*des_dis]
+        return pos_list 
+    elif params.N_LANE ==2:
+        if mod == 0:
+            pos_list = [-1.5, params.I_POS[1]-(q+0.5)*des_dis]
+        elif mod == 1:
+            pos_list = [-4.5, params.I_POS[1]-(q+0.5)*des_dis]
+        return pos_list            
 
 def get_init_pos_inter_random(seed: int, agent_num: int) -> list:
     """交差点のランダムな初期位置のリストを出力

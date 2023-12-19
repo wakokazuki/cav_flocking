@@ -167,6 +167,13 @@ def animation_inter(file_name: str, date_time: str, agents: list, pos_list: list
                 _order = 4*i
                 ax.plot(_roadside[0,_order:_order+2], _roadside[1,_order:_order+2], color="k", ls="-", linewidth=2.0)
                 ax.plot(_roadside[0,_order+2:_order+4], _roadside[1,_order+2:_order+4], color="k", ls="-", linewidth=2.0)
+                # inter 
+                theta_circle =  np.linspace(np.pi/2, np.pi, 50)
+                for i in range(params.N_LANE + 1):
+                    radius = 9 + 3 * i
+                    x = radius * np.cos(theta_circle) +9
+                    y = radius * np.sin(theta_circle) -9
+                    ax.plot(x, y,color = 'black')
             ax.axis("equal")
             ax.set_xlabel("x (m)")
             ax.set_ylabel("y (m)")
@@ -189,8 +196,8 @@ def velocity(file_name: str, x_list: list, y_list: list) -> None:
     plt.yticks([0,2,4,6.0,8])
     # plt.xlabel("elapsed time (s)")
     # plt.ylabel("velocity (m/s)")
-    plt.xlabel("時間 (s)")
-    plt.ylabel("速度 (m/s)")
+    plt.xlabel("time (s)")
+    plt.ylabel("velocity (m/s)")
     plt.grid()
     plt.tight_layout()
     plt.savefig(f"../out/img/velocity/vel_{file_name}.png", dpi=150)
@@ -316,6 +323,14 @@ def inter_path_trajectory(file_name: str, pos_list: list) -> None:
         x_list = [pos_list[fol][i][0] for i in range(len(pos_list[fol]))]
         y_list = [pos_list[fol][i][1] for i in range(len(pos_list[fol]))]
         plt.plot(x_list, y_list, color=params.F_COLORS[fol], linewidth=2.0)
+    #カーブ部分の車線表示
+    theta_circle =  np.linspace(np.pi/2, np.pi, 50)
+    for i in range(params.N_LANE + 1):
+        radius = 9 + 3 * i
+        x = radius * np.cos(theta_circle) +9
+        y = radius * np.sin(theta_circle) -9
+        ax.plot(x, y,color = 'black')
+    
     plt.grid()
     plt.tight_layout()
     plt.savefig(f"../out/img/route/route_{file_name}.png", dpi=150)

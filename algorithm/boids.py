@@ -123,21 +123,31 @@ class Boids:
         """Lane Force and Road Edge Force as Potential Function
         """
         lane_vec = np.zeros(2) # 加速度ベクトル[x,y] 
-        y_axis = 1
-        p_edge, p_lane = set.set_parameter_shill(self.agents[num].set_params)
-        theta = self.env.calc_theta(self.agents[num].pre_pos)
+        x_axis = 0
+        y_axis = 1 
+        p_edge, p_lane = set.set_parameter_shill(self.agents[num].set_params) #係数の取得
+        theta = self.env.calc_theta(self.agents[num].pre_pos) 
         rotate_matrix, _ = calc.get_rotate_matrix(ang=theta)
         # edge force
         road_pos = self.env.calc_lane(self.agents[num].pre_pos)
-        half_road = params.SIZE_Y/2 
-        to_center = half_road - road_pos
-        dis_from_wall = half_road - abs(to_center)
-        if dis_from_wall <= params.ROAD_DIS:
-           lane_vec[y_axis] += p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
-        # lane force
-        lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
-        lane_vec = np.dot(rotate_matrix, lane_vec.T)
-        return lane_vec
+        half_road = params.SIZE_Y/2         #道路の半分の長さの取得
+        to_center = half_road - road_pos    #道路中心からの距離
+        dis_from_wall = half_road - abs(to_center)  #壁からの距離
+        if env.driving_mode == "straight":
+            if dis_from_wall <= params.ROAD_DIS:  #作用範囲より壁に近い時に発動する
+                lane_vec[y_axis] += p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
+            # lane force
+            lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
+            lane_vec = np.dot(rotate_matrix, lane_vec.T)
+            return lane_vec
+        elif env.driving_mode == "inter":
+            if dis_from_wall <= params.ROAD_DIS:  #作用範囲より壁に近い時に発動する
+                lane_vec[x_axis] -= p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
+            # lane force
+            lane_vec[x_axis] -= p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
+            lane_vec = np.dot(rotate_matrix, lane_vec.T)
+            return lane_vec
+
 
     def _navigation(self, num: int): # 誘導
         """Navigation Feedback by Olfati-Saber

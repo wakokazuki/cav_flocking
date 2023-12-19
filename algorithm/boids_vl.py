@@ -1,5 +1,6 @@
 import numpy as np
 import copy
+from shapely.geometry import Polygon
 
 from parameters import params
 from settings import set, calc
@@ -11,7 +12,7 @@ class Boids:
         self.agents = agents
         self.env = env
 
-    def _calc_a(self, num: int) -> np.ndarray: # 加速度ベクトル(a_des)を決定
+    def _calc_a(self, num: int,t) -> np.ndarray: # 加速度ベクトル(a_des)を決定
         """calc accel by flocking algorithm
         Args:
             num (int): 車両の番号
@@ -30,7 +31,7 @@ class Boids:
         if params.LAN_FRC:
             lane_vec = self._lane(num) # 車線幅(lane)
         if params.NAV_FRC:
-            navi_vec = self._navigation(num) # 誘導(navigation)
+            navi_vec = self._navigation(num,t) # 誘導(navigation)
         if params.OBS_FRC:
             if params.IS_OBS_POTENTIAL:
                 obstacle_vec = self._obstacle_velocity_potential(num) # 障害物(obstacle)-速度ポテンシャル
@@ -59,15 +60,34 @@ class Boids:
         total = 0
         [r0_rep, p_rep] = set.get_flock_parameter(set_params=vehicle.set_params, frc_key="SEP")
         theta = self.env.calc_theta(pos=vehicle.pre_pos)
-        rotate_matrix, inverse_matrix = calc.get_rotate_matrix(ang=theta)
-        for i in range(self.env.n_vehicle):
-            if i != num and self.agents[i].state != "V":
-                y_axis = 1 # y-axis order
-                pos_diff = vehicle.pre_pos - self.agents[i].pre_pos
-                distance, rotate_pos_diff = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=pos_diff)
-                if distance < r0_rep:
-                    total += 1
-                    separation_vec += p_rep * ( r0_rep - distance ) * rotate_pos_diff / distance
+        scene = self.env.dec_drive_scene(vehicle.pos)  #走行シーンを取得
+        if scene == "INT":#交差点内の時
+            theta = np.pi/2
+            rotate_matrix, inverse_matrix = calc.get_rotate_matrix(ang=theta)
+            vehicle_pos_fure = calc.gloabal_to_furenne(np.array([params.N_LANE * params.W_LANE,- params.N_LANE * params.W_LANE]),vehicle.pre_pos,scene)
+            for i in range(self.env.n_vehicle):
+                if i != num and self.agents[i].state != "V":
+                    agent_pos_fure = calc.gloabal_to_furenne(np.array([params.N_LANE * params.W_LANE,- params.N_LANE * params.W_LANE]),self.agents[i].pre_pos,self.env.dec_drive_scene(self.agents[i].pre_pos))
+                    y_axis = 1 # y-axis order
+                    pos_diff_furenne = vehicle_pos_fure - agent_pos_fure
+                    distance_furenne, rotate_pos_diff_furenne = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=pos_diff_furenne)
+                    if distance_furenne < r0_rep:
+                        total += 1
+                        theta = self.env.calc_theta(pos=vehicle.pre_pos)
+                        rotate_matrix, inverse_matrix = calc.get_rotate_matrix(ang=theta)
+                        pos_diff = vehicle.pre_pos - self.agents[i].pre_pos
+                        distance, rotate_pos_diff = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=pos_diff)
+                        separation_vec += p_rep * ( r0_rep - distance ) * rotate_pos_diff / distance
+        else:#交差点以外の時
+            rotate_matrix, inverse_matrix = calc.get_rotate_matrix(ang=theta)
+            for i in range(self.env.n_vehicle):
+                if i != num and self.agents[i].state != "V":
+                    y_axis = 1 # y-axis order
+                    pos_diff = vehicle.pre_pos - self.agents[i].pre_pos
+                    distance, rotate_pos_diff = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=pos_diff)
+                    if distance < r0_rep:
+                        total += 1
+                        separation_vec += p_rep * ( r0_rep - distance ) * rotate_pos_diff / distance
         if total > 0:
             separation_vec /= total 
         separation_vec[y_axis] /= self.env.adj
@@ -122,22 +142,50 @@ class Boids:
         vehicle = self.agents[num] # 車両
         lane_vec = np.zeros(2) # vector[x,y]
         y_axis = 1
-        [p_edge, p_lane] = set.get_flock_parameter(set_params=vehicle.set_params, frc_key="LAN")
-        theta = self.env.calc_theta(vehicle.pre_pos)
-        rotate_matrix, _ = calc.get_rotate_matrix(ang=theta)
+        [p_edge, p_lane] = set.get_flock_parameter(set_params=vehicle.set_params, frc_key="LAN") #パラメータの取得
+        theta = self.env.calc_head_theta(vehicle.pos)  #車両のいる位置における中心へのベクトルを取得
+        rotate_matrix, _ = calc.get_rotate_matrix(ang=theta) #回転行列の取得
+        scene = self.env.dec_drive_scene(vehicle.pos)  #走行シーンを取得
         # 道路端から受ける力
-        road_pos = self.env.calc_lane(vehicle.pre_pos)
+        road_pos = self.env.calc_lane(vehicle.pos)
         half_road = params.SIZE_Y/2 
         to_center = half_road - road_pos
         dis_from_wall = half_road - abs(to_center)
-        if dis_from_wall <= params.ROAD_DIS:
-           lane_vec[y_axis] += p_edge * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
-        # 車線から受ける力
-        lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
-        lane_vec = np.dot(rotate_matrix, lane_vec.T)
+        
+        if self.env.driving_mode == "straight":
+            if dis_from_wall <= params.ROAD_DIS:  #作用範囲より壁に近い時に発動する
+                lane_vec[y_axis] += p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
+            # lane force
+            lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
+            lane_vec = np.dot(rotate_matrix, lane_vec.T)
+
+        elif self.env.driving_mode == "inter":
+            if to_center >= 0:
+                #if scene != "INT" and dis_from_wall <= params.ROAD_DIS:  #作用範囲より壁に近い時に発動する
+                #道路端からの分離
+                if dis_from_wall<= params.ROAD_DIS:#変更点注意
+                    lane_vec[y_axis] += p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
+                # lane force
+                #lane_vec[x_axis] -= p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
+                #車線中央を走行する力
+                #lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.cos(np.pi*road_pos/params.W_LANE))
+                lane_vec[y_axis] += p_lane * np.pi / params.W_LANE * (np.sin(2 * np.pi * road_pos / params.W_LANE))
+                lane_vec = np.dot(rotate_matrix, lane_vec.T)
+            elif to_center < 0:
+                #print(scene)
+                #if scene != "INT" and dis_from_wall <= params.ROAD_DIS:  #作用範囲より壁に近い時に発動する
+                if dis_from_wall<= params.ROAD_DIS:
+                    lane_vec[y_axis] += p_edge * self.env.adj * (params.ROAD_DIS - dis_from_wall) * to_center/abs(to_center) 
+                # lane force
+                #lane_vec[x_axis] += p_lane*np.pi/params.W_LANE*(np.sin(2*np.pi*road_pos/params.W_LANE))
+                #lane_vec[y_axis] += p_lane*np.pi/params.W_LANE*(np.cos(np.pi*road_pos/params.W_LANE))
+                lane_vec[y_axis] += p_lane * np.pi / params.W_LANE * (np.sin(2 * np.pi * road_pos / params.W_LANE))
+                lane_vec = np.dot(rotate_matrix, lane_vec.T)
         return lane_vec
 
-    def _navigation(self, num: int) -> np.ndarray: # 誘導(navigation)
+
+
+    def _navigation(self, num: int,t) -> np.ndarray: # 誘導(navigation)
         """Navigation Feedback by Olfati-Saber
         """
         vehicle = self.agents[num] # 車両
@@ -146,15 +194,16 @@ class Boids:
         theta = self.env.calc_theta(vehicle.pre_pos)
         rotate_matrix, inverse_matrix = calc.get_rotate_matrix(ang=theta)
         leader_pos = self.agents[params.ORD_LEADER].pre_pos
-        # leader_vel = self.agents[params.ORD_LEADER].pre_velocity
-        leader_vel = self.agents[params.ORD_LEADER]._velocity_vector()
-        y_axis = 1 # y-axis order
+        leader_vel = self.agents[0]._leader_velocity(t)
+        #leader_vel = self.agents[params.ORD_LEADER]._velocity_vector()
+        y_axis = 0 # y-axis order
         pos_diff = vehicle.pre_pos - leader_pos
         _, rotate_pos_diff = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=pos_diff)
         # vel_diff = vehicle.pre_velocity-leader_vel
         vel_diff = vehicle._velocity_vector() - leader_vel
         _, rotate_vel_diff = calc.get_adjusted_difference(y_axis=y_axis, adj=self.env.adj, inverse_matrix=inverse_matrix, difference=vel_diff)
         navigation_vec += -p_pos*self.sigma_func(rotate_pos_diff)
+        #print(rotate_vel_diff)
         navigation_vec += -p_vel*(rotate_vel_diff)
         navigation_vec[y_axis] /= self.env.adj
         navigation_vec = np.dot(rotate_matrix, navigation_vec.T)

@@ -78,6 +78,8 @@ def get_rotate_matrix(ang: float) -> tuple[np.ndarray, np.ndarray]:
                                [np.sin(-ang), np.cos(-ang)]]) # 　逆行列
     return rotate_matrix, inverse_matrix
 
+
+#車間距離の関数
 def get_adjusted_difference(y_axis: int, adj: float, inverse_matrix: list, difference: list):
     """get adjusted difference(distance, velocity) and rotate difference [x,y]
 
@@ -104,7 +106,7 @@ def get_braking_distance(velocity: float, veh_dis: float) -> float:
     frict = 0.7 # 摩擦係数(乾いた路面:0.7, 濡れた路面:0.5)
     hour_vel = velocity*3600/1000 # [h/km] 速度の時速換算
     # 制動距離 = 時速の2乗 / (254 * 摩擦係数)
-    dis = hour_vel**2/(254*frict) + veh_dis # [m] 制動距離
+    dis = hour_vel**2/(254*frict) +  params.CL # [m] 制動距離
     return dis
 
 def get_longitudinal_vec(ang, vector):
@@ -172,6 +174,33 @@ def get_velocity_within_limits(pre_velocity, pre_angle, des_accel, max_angle, ma
         velocity = max_velocity*velocity/np.linalg.norm(velocity)
     accel = np.dot(rotate_matrix, regulate_accel)
     return velocity, accel, angle
+
+def gloabal_to_furenne(o_xy, pos,scene):
+    if scene == "INT":
+        #半径の算出
+        r = np.linalg.norm(pos - o_xy) # np.array
+        pos_dash = pos - o_xy
+        rad_x = math.acos(abs(pos_dash[0])/r)
+        rad_y = math.asin(abs(pos_dash[1])/r)
+        dis = r - params.N_LANE*params.W_LANE
+        s = dis
+        t = r * rad_y * 4.5 / s  
+        pos_furenne = np.array([s,t])
+        return pos_furenne
+    elif scene == "L_D":
+        s = - pos[0]
+        t = pos[1] + 9
+        pos_furenne = np.array([s,t])
+        return pos_furenne
+    elif scene == "L_R":
+        s = pos[1]
+        t = pos[0] + 9
+        pos_furenne = np.array([s,t])
+        return pos_furenne
+
+
+
+
 
 
     

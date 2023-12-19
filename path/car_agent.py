@@ -165,7 +165,7 @@ def get_inter_path(max_vel: float, init_pos: list, final_pos: list) -> tuple[np.
     inter_int = round(np.pi*lane_width/ (max_vel*dt)) # 参照パスのカウント数
     print(inter_int)
     x_inter, y_inter = _inter_target(count=inter_int, o_xy=[lane_width, -lane_width], radius=lane_width+abs(init_pos[0]), s_angle=np.pi, e_angle=np.pi/2) 
-    exit_length = max(np.abs(final_pos)) - lane_width + 10.0
+    exit_length = max(np.abs(final_pos)) - lane_width + 20.0
     exit_int = int(exit_length/(max_vel*dt)) # 参照パスのカウント数
     x_exit = [lane_width+exit_length*i/exit_int for i in range(exit_int)] 
     y_exit = [final_pos[1] for _ in range(exit_int)]

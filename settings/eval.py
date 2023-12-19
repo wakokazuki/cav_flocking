@@ -4,6 +4,9 @@
 import numpy as np
 import copy
 import math
+from shapely.geometry import Polygon
+
+
 
 from parameters import params
 from settings import calc
@@ -67,13 +70,19 @@ def count_coll_value(agents, env):
             distance = np.linalg.norm(vehicle.pos - agents[i].pos)
             if distance <= max_length:
                 if params.IS_INTER: # 交差点の場合
-                    print("Error. Collision calculation")
+                    #vehicleの車両領域の体格頂点を取得
+                    rect_vehicle = vehicle.car_rect(x_pos = vehicle.pos[0],y_pos = vehicle.pos[1],theta = vehicle.yaw)
+                    rect_agent = vehicle.car_rect(x_pos = agents[i].pos[0],y_pos = agents[i].pos[1],theta = agents[i].yaw)
+                    if rect_vehicle.intersects(rect_agent):
+                        coll_count += 1
+
+                    
                 else: # 直線の場合
-                    longitudinal_dis = abs(vehicle.pos[0] - agents[i].pos[0])
-                    lateral_dis = abs(vehicle.pos[1] - agents[i].pos[1])
-                    if longitudinal_dis <= params.CL and lateral_dis <= params.CW:
+                    longitudinal_dis = abs(vehicle.pos[0] - agents[i].pos[0]) #横方向の距離
+                    lateral_dis = abs(vehicle.pos[1] - agents[i].pos[1]) #縦方向の距離
+                    #if longitudinal_dis <= params.CL and lateral_dis <= params.CW:
                         # print("Collision")
-                        coll_count += 1 
+                        #coll_count += 1 
     coll_count /= 2
     # for age in range(len(agents)):
     #     if params.VIRTUAL_LEADER:
@@ -97,6 +106,8 @@ def count_coll_value(agents, env):
     #             coll_count += 1
     # coll_count = coll_count/2
     # collision with road edge
+    
+    #壁との衝突判定
     for age in range(len(agents)):
         if params.VIRTUAL_LEADER:
             if age == params.ORD_LEADER:
@@ -104,7 +115,7 @@ def count_coll_value(agents, env):
         road_pos = env.calc_lane(agents[age].pos)
         half_road = params.SIZE_Y/2 
         to_center = half_road - road_pos
-        dis_from_wall = half_road - abs(to_center)
+        dis_from_wall = half_road - abs(to_center) #壁からの距離
         if dis_from_wall < params.CW/2:
             coll_count += 1
     return coll_count

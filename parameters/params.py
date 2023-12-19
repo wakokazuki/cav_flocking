@@ -15,7 +15,7 @@ N_LANE = 3 # [-] 車線数
 W_LANE = 3.0 # [m] 車線の幅
 SIZE_X = 300  # [m] 空間のサイズ(X軸)
 SIZE_Y = N_LANE*W_LANE  # [m] 空間のサイズ(Y軸)
-NT = 250 # [-] 時間ステップの数 # 250, 375, 750
+NT = 190 # [-] 時間ステップの数 # 250, 375, 750
 DT = 0.1  #[s] 時間ステップ
 T_LIST = [0, 50, 100, 150, 200, 250, 300, 350, 400] # 
 
@@ -31,7 +31,7 @@ INT_DIREC_NUM = 4 # 交差点の方向の数(固定)
 
 # 車両の設定
 N_LEADER = 1 # [-] リーダーの数
-N_FOLLOWER = 9 # [-] Flocking車両の数
+N_FOLLOWER = 5 # [-] Flocking車両の数
 N_HUMAN = 4 # [-] 人間のドライバー
 N_VEHICLE = N_LEADER + N_FOLLOWER  # 全車両の数
 N_INTER = 6 # 交差点の車両の数
@@ -44,13 +44,13 @@ I_POS = [-4.5, -29.0] # [m,m] リーダーの初期位置(交差点)
 F_POS = [29.0, 4.5] # [m,m] リーダーの最終位置(交差点)
 
 # Flocking車両の設定
-DELTA_MAX = np.pi/8 # [rad] 最大ステアリング角
-DELTA_MIN = -np.pi/8 # [rad] 最小ステアリング角
-PHI_MAX = DELTA_MAX # [rad/s] 最大ステアリング角速度
-PHI_MIN = DELTA_MIN # [rad/s] 最小ステアリング角速度
-A_MAX = 2.0 # [m/s^2] 最大加速度
+DELTA_MAX = np.pi/4 # [rad] 最大ステアリング角
+DELTA_MIN = - np.pi/4 # [rad] 最小ステアリング角
+PHI_MAX = DELTA_MAX  # [rad/s] 最大ステアリング角速度
+PHI_MIN = DELTA_MIN  # [rad/s] 最小ステアリング角速度
+A_MAX = 10.0 # [m/s^2] 最大加速度
 A_MIN = -5.0 # [m/s^2] 最小加速度
-V_MAX = 12.0 # [m/s] 最大速度 # 4 [m/s] = 14.4 [km/h], 8 [m/s] = 28.8 [km/h], 12 [m/s] = 43.2 [km/h]
+V_MAX = 4.0 # [m/s] 最大速度 # 4 [m/s] = 14.4 [km/h], 8 [m/s] = 28.8 [km/h], 12 [m/s] = 43.2 [km/h]
 V_MIN = 0.0 # [m/s] 最小速度
 JERK_MAX = A_MAX # [m/s^3] 最大躍度
 JERK_MIN = A_MIN # [m/s^3] 最小躍度
@@ -103,7 +103,8 @@ navi_label = ["p_pos", "p_vel"]
 obs_label = ["p_obs"]
 LABEL_DICT = {"SEP":sep_label, "ALI":ali_label, "ATT":att_label, "LAN":lan_label, "NAV":navi_label, "OBS":obs_label}
 
-# Flockingパラメータの下限(lower limit, ll)と上限(upper limit, ul)
+
+# Flockingパラメータの下限(lower limit, ll)と上限(upper limit, ul)蜂屋のモデル
 sep_ll = [DES_DIS, 0.1]
 sep_ul = [CLS_DIS, 1.5]
 ali_ll = [DES_DIS/2, 0.01, 0.20]
@@ -116,21 +117,36 @@ nav_ll = [0.01, 0.1]
 nav_ul = [0.50, 1.0]
 obs_ll = [0.1]
 obs_ul = [1.0]
+"""
+# Flockingパラメータの下限(lower limit, ll)と上限(upper limit, ul)
+sep_ll = [DES_DIS, 0.5]
+sep_ul = [CLS_DIS, 3.0]
+ali_ll = [DES_DIS/2, 0.01, 0.20]
+ali_ul = [DES_DIS  , 0.20, 0.50]
+att_ll = [0.01]
+att_ul = [0.30]
+lan_ll = [8.0, 8.0]
+lan_ul = [12.0, 13.0]
+nav_ll = [5.0, 0.01]
+nav_ul = [8.0, 0.5]
+obs_ll = [0.1]
+obs_ul = [1.0]
+"""
 
 L_LIM_DICT = {"SEP":sep_ll, "ALI":ali_ll, "ATT":att_ll, "LAN":lan_ll, "NAV":nav_ll, "OBS":obs_ll}
 U_LIM_DICT = {"SEP":sep_ul, "ALI":ali_ul, "ATT":att_ul, "LAN":lan_ul, "NAV":nav_ul, "OBS":obs_ul}
 
 # Flockingのルール一覧(Force, FRC)
-[SEP_FRC, ALI_FRC, ATT_FRC, LAN_FRC, NAV_FRC, OBS_FRC] = [True, True, True, True, True, True]
+[SEP_FRC, ALI_FRC, ATT_FRC, LAN_FRC, NAV_FRC, OBS_FRC] = [True, True, True, True, True, False]
 FRC_LIST = [SEP_FRC, ALI_FRC, ATT_FRC, LAN_FRC, NAV_FRC, OBS_FRC]
 FRC_BIN_DICT = {"SEP":int(SEP_FRC), "ALI":int(ALI_FRC), "ATT":int(ATT_FRC), "LAN":int(LAN_FRC), "NAV":int(NAV_FRC), "OBS":int(OBS_FRC)}
 FRC_DICT = {"SEP":SEP_FRC, "ALI":ALI_FRC, "ATT":ATT_FRC, "LAN":LAN_FRC, "NAV":NAV_FRC, "OBS":OBS_FRC}
 
 # 障害物の有無
-IS_OBSTACLE = True
+IS_OBSTACLE = False
 
 # 交差点の有無
-IS_INTER = False
+IS_INTER = True
 
 # 仮想リーダーの有無
 VIRTUAL_LEADER = True
@@ -145,8 +161,8 @@ IS_OBS_POTENTIAL = True
 # マルチプロセシング・NSGA-iiiの設定
 N_CPU = cpu_count() # CPUの数(自動で設定)
 N_LOOP = 1 # NSGA-iiiの反復回数
-N_POP = 10 # 個体群の数(population)
-N_GEN = 20 # 世代数(generation)
+N_POP = 70# 個体群の数(population)
+N_GEN = 70 # 世代数(generation)
 
 # ヒートマップ
 HEAT_V_MIN = 4.0
@@ -157,7 +173,7 @@ HEAT_X_NUM = 5 # x軸の要素数
 HEAT_Y_NUM = 7 # y軸の要素数
 
 # Pymooの設定
-IS_SINGLE_OBJ = False # 単目的最適化かどうか # 世代ごとの目的値の推移の評価用
+IS_SINGLE_OBJ = True # 単目的最適化かどうか # 世代ごとの目的値の推移の評価用
 [OBJ_CORR, OBJ_COLL, OBJ_OBS, OBJ_DIS, OBJ_VEL] = [False, True, True, True, False]
 OBJ_LIST = [OBJ_CORR, OBJ_COLL, OBJ_OBS, OBJ_DIS, OBJ_VEL] # 目的関数のリスト
 OBJ_DICT = {"CORR":OBJ_CORR, "COLL":OBJ_COLL, "OBS":OBJ_OBS, "DIS":OBJ_DIS, "VEL":OBJ_VEL}
@@ -168,9 +184,10 @@ else: # 多目的最適化の場合
     N_OBJ = OBJ_LIST.count(True)  # 目的関数の数(objective)
 XL, XU = set.set_parameter_limit(lower=L_LIM_DICT, upper=U_LIM_DICT, frc_dict=FRC_DICT)
 N_VAR = len(XL) # Flockingパラメータの数
-N_PAR = 14 # Das-DennisのPartitionの数
+N_PAR = 8 # Das-DennisのPartitionの数
 N_CNST = 0 # 制約条件の数
 
 # 選択パラメータ
-N_ROW = 3 # パラメータセットの行番号
+N_ROW = 0
+ # パラメータセットの行番号
 

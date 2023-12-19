@@ -1,5 +1,7 @@
 import numpy as np
 import copy
+from shapely.geometry import Polygon
+import math
 
 from algorithm import boids, boids_vl
 import parameters.params as params
@@ -21,7 +23,7 @@ class Agent:
         self.velocity = max_vel  # [m/s] 現在の車両の速度
         self.pre_velocity = copy.deepcopy(self.velocity) # [m/s] 直前の車両の速度
         self.accel = 0.0 # [m/s/s] 車両の加速度
-        self.yaw = 0.0 # [rad] 車両のヨー角
+        self.yaw = np.pi/2 # [rad] 車両のヨー角
         self.slip = 0.0 # [rad] 車両の横滑り角
         self.delta = 0.0 # [rad] 車両のステアリング角
         self.theta = self.yaw + self.slip # [rad] 車両の速度ベクトル角
@@ -48,7 +50,7 @@ class Agent:
             t (int): 現在のタイムステップ
         """
         if self.state == "F": # Flocking車両
-            self._state_F(num, agents, env)  
+            self._state_F(num, agents, env,t)  
         elif self.state == "L": # リーダー
             self._state_L(num, agents, env, t)
         elif self.state == "V": # 仮想リーダー
@@ -70,7 +72,7 @@ class Agent:
         dy = self.rear_y - point_y
         return np.hypot(dx, dy)
 
-    def _state_F(self, num: int, agents: object, env: object) -> None: # Flocking車両
+    def _state_F(self, num: int, agents: object, env: object,t) -> None: # Flocking車両
         """Flocking車両の速度・位置の更新
         Args:
             num (int): 車両の番号
@@ -83,7 +85,7 @@ class Agent:
         else: # リーダーの場合
             BoidsAgents = boids.Boids(agents, env)
         # 加速度を計算
-        a_vector = BoidsAgents._calc_a(num)
+        a_vector = BoidsAgents._calc_a(num,t)
         accel, delta = self._adjust_control_input(a_vector=a_vector)        
         # 位置座標を更新
         self._update_kbm_center(accel=accel, delta=delta)
@@ -237,6 +239,19 @@ class Agent:
         vector = np.array([self.pre_velocity*np.cos(self.theta), self.pre_velocity*np.sin(self.theta)])
         return vector
     
+    def _leader_velocity(self,t) -> np.ndarray:
+        if params.IS_INTER:
+            driving_mode = "inter"
+        else:
+            driving_mode = "straight"
+        max_vel = params.V_MAX
+        leader_vel_del = np.loadtxt(f"../out/leader/csv/{driving_mode}_speed{int(max_vel):02}_path_velocity.csv", delimiter=",", dtype="float64")
+        vector_x = leader_vel_del[0,t]
+        vector_y = leader_vel_del[1,t]
+        vector = np.array([vector_x,vector_y])
+        return vector
+
+
     def _update_kbm_rear(self, accel: float, delta: float) -> None:
         """Kinematic Bycycle Model(KBM)による後軸(rear)の位置・速度の更新
         Args:
@@ -271,6 +286,21 @@ class Agent:
         self.accel = accel
         self.delta = delta
         self.theta = self.yaw + self.slip # [rad] 速度ベクトルの角度
+
+    def car_rect(self,x_pos,y_pos,theta):
+        center_pos = np.array([x_pos,y_pos]) #中心座標を取得
+        pos_vec = np.zeros(2)
+        pos_vec[0] += params.CL / 2
+        pos_vec[1] += params.CW / 2
+        pre_pos = [center_pos + pos_vec,center_pos + (pos_vec[0],- pos_vec[1]),center_pos - pos_vec, center_pos + (-pos_vec[0],pos_vec[1])]
+        rotated_pos = [(pos_vec[0] + (x - pos_vec[0]) * math.cos(theta) - (y - pos_vec[1]) * math.sin(theta),
+                     pos_vec[1] + (x - pos_vec[0]) * math.sin(theta) + (y - pos_vec[1]) * math.cos(theta))
+                    for x, y in pre_pos]
+        rotated_pos = [[round(num, 7) for num in row] for row in rotated_pos]
+        #print(rotated_pos)
+        rect = Polygon(rotated_pos)
+        return rect
+
     
 class StateList:
     """車両エージェントの状態リスト

@@ -26,7 +26,7 @@ def main(show_flag, max_vel):
     max_timestep = params.NT # [-] シミュレーションの最大タイムステップ数
     # 初期設定
     order = 0
-    vehicle = agent.Agent(state="C", set_params=None, max_vel=max_vel, init_pos=init_pos)
+    vehicle = agent.Agent(state="L", set_params=None, max_vel=max_vel, init_pos=init_pos)
     vehicle.pos[:] = init_pos
     vehicle.yaw = np.pi/2
     vehicle.rear_x = vehicle.pos[0] - ((params.WB / 2) * np.cos(vehicle.yaw))
